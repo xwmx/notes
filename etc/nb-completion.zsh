@@ -49,11 +49,18 @@ _nb_subcommands() {
     local _notebooks
     IFS=$'\n' _notebooks=($(nb notebooks --names --no-color --unarchived))
 
+    local _filenames
+	#IFS=$'\n' _filenames=($(nb ls --filenames | cut -d ' ' -f 2))
+	# the field number is unknown : plain or encrypted files ?
+	# you need awk to get the last field
+	IFS=$'\n' _filenames=($(nb ls --filenames | awk '{print $NF}'))
+
     local _completions=()
-    IFS=$'\n' _completions=(${_commands[@]})
+	IFS=$'\n' _completions=(${_commands[@]} ${_filenames[@]})
 
     local _commands_cached=
     local _notebooks_cached=
+    local _filenames_cached=
 
     if [[ -e "${_cache_path}" ]]
     then
@@ -65,18 +72,22 @@ _nb_subcommands() {
 
         if [[ "${_counter}" == 1 ]]
         then
-          _commands_cached="${__line}"
+			IFS=$' ' _commands_cached=("${__line}")
         elif [[ "${_counter}" == 2 ]]
         then
-          _notebooks_cached="${__line}"
+			IFS=$' ' _notebooks_cached=("${__line}")
+        elif [[ "${_counter}" == 3 ]]
+        then
+			IFS=$' ' _filenames_cached=("${__line}")
         else
           break
         fi
       done < "${_cache_path}"
     fi
 
-    if [[ "${_commands_cached}"  != "${_commands[*]:-}"   ]] ||
-       [[ "${_notebooks_cached}" != "${_notebooks[*]:-}"  ]]
+    if [[ "${_commands_cached}"  != "${_commands:-}"   ]] ||
+       [[ "${_notebooks_cached}" != "${_notebooks:-}"  ]] ||
+       [[ "${_filenames_cached}" != "${_filenames:-}"  ]]
     then
       # Construct <notebook>:<subcommand> completions.
       for __notebook in "${_notebooks[@]}"
@@ -105,8 +116,10 @@ _nb_subcommands() {
       {
         (IFS=$' '; printf "%s\\n" "${_commands[*]}")
         (IFS=$' '; printf "%s\\n" "${_notebooks[*]}")
+        (IFS=$' '; printf "%s\\n" "${_filenames[*]}")
         printf "%s\\n" "${_completions[@]}"
       } >> "${_cache_path}"
+
     fi
   }
 
@@ -142,25 +155,27 @@ _nb_subcommands() {
 
   if [[ -e "${_cache_path}" ]]
   then
+    _nb_cache_completions "${_cache_path}"
+
     local _counter=0
 
     while IFS= read -r __line
     do
       _counter=$((_counter+1))
 
-      if [[ "${_counter}" -gt 2 ]]
+      if [[ "${_counter}" -gt 3 ]]
       then
         _completions_cached+=("${__line}")
       fi
     done < "${_cache_path}"
 
-    (_nb_cache_completions "${_cache_path}" &)
+    #(_nb_cache_completions "${_cache_path}" &)
   fi
 
   if [[ "${?}" -eq 0 ]]
   then
-    compadd -- "${_completions_cached[@]}"
-    return 0
+	compadd -- "${_completions_cached[@]}"
+	return 0
   else
     return 1
   fi
