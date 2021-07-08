@@ -2252,12 +2252,15 @@ _pager() {
   if [[   -n "${PAGER:-}" ]] && [[ "${PAGER:-}" =~ less ]]
   then
     "${PAGER}" -R --CLEAR-SCREEN --prompt="$(_less_prompt)"
+  elif [[ -n "${PAGER:-}" ]]
+  then
+      "${PAGER}"
+  elif _command_exists "bat"
+  then
+      bat --style numbers,grid
   elif _command_exists "less"
   then
     less -R --CLEAR-SCREEN --prompt="$(_less_prompt)"
-  elif [[ -n "${PAGER:-}" ]]
-  then
-    "${PAGER}"
   else
     cat
   fi
